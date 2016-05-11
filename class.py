@@ -8,72 +8,95 @@ import numpy as np
 def processcompare(f):
      dic={};
      for line in f:
-         s=line.split(',');#分割字符串
-         dic[s[0]]=dic[s[0]]+','+s[1] if dic.has_key(s[0]) else s[1]  
+         s=line.split(',')#分割字符串
+         dic[s[0]]=dic[s[0]]+'|'+s[1] if dic.has_key(s[0]) else s[1]  
      return dic;
-def beginreplace(hello,dic):
-    hello=sorted(hello,lambda x:x[1])
-    count={};
-    hello_1=[];
-    dics=[];
-    for i in dic.values():
-        l=i.split(',');
-        for j in l:
-            dics.append(j)
+def n1(l):
+    # 060cf50dcd136163eac4879e10f94e4d,201501,男,50-59,0-49,Apple,iPhone 6 (A1586)
+    re=[]
+    flag=False
+    multi={}
+    l=sorted(l,key=lambda x:x[0],reverse=False)
+    for i in range(8,12):
+        name=l[i][7]
+        if "|" in name:
+            name=name.split("|")# 需要被替代的名字
+            for i in name:
+                multi[i]=0
     for i in range(8):
-        listline=hello[i];
-        linesplit=listline.split(',');
-        s=linesplit[6][3:-3];
-        #print s
-        #print s in dics
-        if s in dics:#判断字典中是否存在这个值
-            if count.has_key(s):
-               count[s]=count[s]+1;
-            else:
-               count[s]=1;
-        else:
-            pass;
-        hello_1.append(listline);
-    #print type(count)
-    for i in range(4):
-        listline=hello[i+8];
-        listline1=listline.strip('\n');
-        linesplit=listline1.split(',');
-        #print linesplit
-        s=linesplit[6][3:-2];
-        #print s
-        if dic.has_key(s):#存在对照表
-            if ',' in dic[s]:#关键字存在多个选项
-                if count:#前八个里面有候选值，取出现次数最多的候选值
-                    #print type(count)
-                    count_num= sorted(count.iteritems(), key=lambda d:d[1], reverse = True)
-                    listline=listline.replace(s,count_num[0][0]);
-                    #hello_1.append(listline);
-                else:#候选值都不在前八个里面,取对照表第一个
-                    candidate=dic[s].split(',');
-                    listline=listline.replace(s,candidate[0]);
-                    #hello_1.append(listline);
-            else:#关键字只有一个选项，直接替换
-                listline=listline.replace(s,dic[s]);
-                #hello_1.append(listline);
-        else:#不存在对照表，不改变，保留原值
-            pass;
-            #hello_1.append(listline);
-        hello_1.append(listline);
-    #print hello_1;
-    #print type(hello_1)
-    return hello_1;
+        re.append(l[i])
+        name=l[i][7]
+        if multi.has_key(name):
+            multi[name]=multi[name]+1
+    for i in range(8,12):
+        name=l[i][7]
+        if "|" in name:
+            sor=sorted(multi.items(),key=lambda x:x[1],reverse=True)
+            l[i][7]=sor[0][0]
+        re.append(l[i])
+    return re;
+def multi(l):
+    re=""
+    for i in l:
+        re+=i+"|"
+    return re[:-1]
+def jo(l):
+    if l[1][1]!=None:
+        l[1][0][7]=l[1][1]
+    return l[1][0]
+def red(l):
+    l[7]=l[7].replace("Redmi  3LTE","Redmi 3").replace("Ascend P7-L09(Ascend P7)","Ascend P7")
+    line=""
+    for i in l:
+        line+=i+","
+    return line[:-1]
+    
 if __name__ == "__main__":
     sc = SparkContext(appName="PythonWordCount")
-    line = sc.textFile("./kesci/newraw")
-    compare=sc.textFile("./kesci/compare").collect()
-    mydic=processcompare(compare)
-    # records=line.map(lambda x:x.split(","))
-    t=line.map(lambda x:(x.split(",")[0],x))\
-                    .groupByKey()\
-                    .mapValues(list)
-    t=t.mapValues(lambda x:beginreplace(x,mydic))
-    for i in t.take(960):
-        print(i)
-    # t.coalesce(1).saveAsTextFile("./kesci/re11")
-    print("******************OK***********************"+str(t.count())+","+str(t.count()))
+    line = sc.textFile("./kesci/user/g*")
+    compare=sc.textFile("./kesci/compare1").filter(lambda x:"???"not in x)\
+                .map(lambda x:(x.split(",")[0],x.split(",")[1]))\
+                .groupByKey()\
+                .mapValues(list)\
+                .mapValues(multi)
+    records=line.map(lambda x:x.split(","))
+    records.cache()
+    eight=records.filter(lambda x:x[0]<="201508")
+    four=records.filter(lambda x:x[0]>"201508")\
+                .map(lambda x:(x[7],x))\
+                .leftOuterJoin(compare)\
+                .map(jo)
+    mul=four.filter(lambda x:"|" in x[7]).map(lambda x:(x[1],1)).distinct()
+    four=four.union(eight)
+    mul=four.map(lambda x:(x[1],x)).leftOuterJoin(mul)
+    normal=mul.filter(lambda x:x[1][1]==None).map(lambda x:x[1][0])
+    mul=mul.filter(lambda x:x[1][1]!=None).mapValues(lambda x:x[0])\
+                .groupByKey()\
+                .mapValues(list)\
+                .mapValues(n1)\
+                .flatMapValues(lambda x:x)\
+                .map(lambda x:x[1])
+    mul=mul.union(normal)
+    t=mul.map(red).sortBy(lambda x:x.split(",")[1]+x.split(",")[0])
+    good=sc.textFile("./kesci/user/effectiveuser.csv").map(lambda x:(x,1))
+    t=t.map(lambda x:(x.split(",")[1],x)).join(good).map(lambda x:x[1][0])
+    for i in range(12):
+        if i>=9:
+            i=str(i+1)
+        else:
+            i="0"+str(i+1)
+        temp=t.filter(lambda x:x.split(",")[0]==("2015"+i))
+        temp.saveAsTextFile("./kesci/userre11/2015"+i)
+    # t.saveAsTextFile("./kesci/userfinal")
+    # t=records.map(lambda x:(x[7],x))\
+    #                 .groupByKey()\
+    #                 .mapValues(list)\
+    #                 .join(compare)\
+    #                 .map(jo)
+    # t=t.mapValues(lambda x:beginreplace(x,mydic)).flatMapValues(lambda x:x).map(lambda x:x[1]).sortBy(lambda x:x[0]+x[1])
+    # for i in t.take(1200):
+    #     print(i)
+    # line=line.sortBy(lambda x:x.split(",")[0])
+    # t.saveAsTextFile("./kesci/finalin11")
+    # line.saveAsTextFile("./kesci/hei")
+    print("******************OK***********************"+str(t)+","+str(t))

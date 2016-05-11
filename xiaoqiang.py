@@ -26,7 +26,7 @@ def lis2str(l):
         re+=str(i)+","
     re+=str(l[1])
     return re
-def change1(l,shape):
+def change1(l,shape,flag):
     cat=np.zeros(shape)
     l=sorted(l,key=lambda x:x[0],reverse=False)
     temp=""
@@ -49,9 +49,10 @@ def change1(l,shape):
         if last==l[i][1]:
             usetime=shape-i
     temp.append(usetime)
-    # s=set([i[1] for i in l[shape-1:shape+3]])
-    # a=1 if len(s)>1 else 0
-    # temp.append(a)
+    if flag:
+        s=set([i[1] for i in l[shape-1:shape+3]])
+        a=1 if len(s)>1 else 0
+        temp.append(a)
     return temp
 def toline(l):
     line=""
@@ -64,17 +65,17 @@ def listadd(l):
     return l[1]
 if __name__ == "__main__":
     sc = SparkContext(appName="PythonWordCount")
-    line = sc.textFile("./kesci/user/g1*")
+    line = sc.textFile("./kesci/userfinal/")
     records=line.map(lambda x:x.split(","))
     records.cache()
-    # records=records.filter(lambda x:x[0]>"201501")
+    # records=records.filter(lambda x:x[0]>"201503")
     good=sc.textFile("./kesci/user/effectiveuser.csv").map(lambda x:(x,1))
     t=records.map(lambda x:(x[1],[x[i] for i in [0,7]]))\
                     .groupByKey()\
                     .mapValues(list)\
-                    .mapValues(lambda x:change1(x,4))
+                    .mapValues(lambda x:change1(x,9,True))
     t=t.join(good).mapValues(lambda x:x[0]).map(toline)
     # for i in t.take(50):
     #     print(i)
-    t.coalesce(1).saveAsTextFile("./kesci/910")
+    t.coalesce(1).saveAsTextFile("./kesci/19")
     # print("******************OK***********************"+str(label.count())+","+str(t.count()))
