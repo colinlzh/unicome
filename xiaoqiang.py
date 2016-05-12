@@ -69,12 +69,11 @@ if __name__ == "__main__":
     records=line.map(lambda x:x.split(","))
     records.cache()
     # records=records.filter(lambda x:x[0]>"201503")
-    good=sc.textFile("./kesci/user/effectiveuser.csv").map(lambda x:(x,1))
     t=records.map(lambda x:(x[1],[x[i] for i in [0,7]]))\
                     .groupByKey()\
                     .mapValues(list)\
-                    .mapValues(lambda x:change1(x,9,True))
-    t=t.join(good).mapValues(lambda x:x[0]).map(toline)
+                    .mapValues(lambda x:change1(x,9,True))\
+                    .map(toline)
     # for i in t.take(50):
     #     print(i)
     t.coalesce(1).saveAsTextFile("./kesci/19")

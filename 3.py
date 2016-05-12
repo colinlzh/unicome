@@ -25,6 +25,9 @@ if __name__ == "__main__":
             # if c==100:
             #     break
             # c+=1
+    left=[]
+    for i in range(100000):
+        left.append(i)
     w=open("test","w")
     w.writelines(left)
     w.close()

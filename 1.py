@@ -76,10 +76,10 @@ def red(l):
     return line[:-1]
 if __name__ == "__main__":
     sc = SparkContext(appName="PythonWordCount")
-    line = sc.textFile("./kesci/userfinalfinal/")
+    line = sc.textFile("./kesci/userfinal/")
     records=line.map(lambda x:x.split(","))
     records.cache()
-    t=records.filter(lambda x:len(x)!=11)
+    t=records.map(lambda x:x[1]).distinct()
     # records=records.map(fix).map(red)
     # records.saveAsTextFile("./kesci/userfinalfinal")
     # for i in range(12):

@@ -45,12 +45,33 @@ def jo(l):
         l[1][0][7]=l[1][1]
     return l[1][0]
 def red(l):
-    l[7]=l[7].replace("Redmi  3LTE","Redmi 3").replace("Ascend P7-L09(Ascend P7)","Ascend P7")
+    l[7]=l[7].replace("Redmi  3LTE","Redmi 3")\
+    .replace("Ascend P7-L09(Ascend P7)","Ascend P7")\
+    .replace("N918St(V5 S)","N958St/N918St")\
+    .replace("Coolpad 7620L-W00","Coolpad 7620L/Coolpad 7920/Coolpad 7610/Coolpad 7971")\
+    .replace("Coolpad 7610","Coolpad 7620L/Coolpad 7920/Coolpad 7610/Coolpad 7971")\
+    .replace("Coolpad 9190L","Coolpad 5892")\
+    .replace("2700 Classic","2700c/2700c-2")
     line=""
     for i in l:
         line+=i+","
     return line[:-1]
-    
+def fix(l):
+    if len(l)==11:
+        return l
+    else :
+        if l[7]!=l[-4]: 
+            for i in l[7:-3]:
+                l[7]=l[7]+"$"+i
+        l[8]=l[-3]
+        l[9]=l[-2]
+        l[10]=l[-1]
+        return l[:11]
+def red(l):
+    line=""
+    for i in l:
+        line+=i+","
+    return line[:-1]    
 if __name__ == "__main__":
     sc = SparkContext(appName="PythonWordCount")
     line = sc.textFile("./kesci/user/g*")
@@ -80,14 +101,17 @@ if __name__ == "__main__":
     t=mul.map(red).sortBy(lambda x:x.split(",")[1]+x.split(",")[0])
     good=sc.textFile("./kesci/user/effectiveuser.csv").map(lambda x:(x,1))
     t=t.map(lambda x:(x.split(",")[1],x)).join(good).map(lambda x:x[1][0])
+    records=t.map(lambda x:x.split(","))
+    records.cache()
+    t=records.map(fix).map(red)
     for i in range(12):
         if i>=9:
             i=str(i+1)
         else:
             i="0"+str(i+1)
         temp=t.filter(lambda x:x.split(",")[0]==("2015"+i))
-        temp.saveAsTextFile("./kesci/userre11/2015"+i)
-    # t.saveAsTextFile("./kesci/userfinal")
+        temp.saveAsTextFile("./kesci/userre/2015"+i)
+    t.saveAsTextFile("./kesci/userfinal")
     # t=records.map(lambda x:(x[7],x))\
     #                 .groupByKey()\
     #                 .mapValues(list)\
